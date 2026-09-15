@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+\<!DOCTYPE html>
 <html lang="bn">
 <head>
 <meta charset="UTF-8">
@@ -69,7 +69,7 @@ body {
     position: absolute; 
     left: 0; top: 0;
     width: 100%; height: 100%;
-    object-fit: cover; 
+    object-fit: contain; 
     object-position: center;
     transform: translate(0px, 0px) scale(1);
     transform-origin: center center; 
@@ -156,10 +156,7 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
     background: #080808;
 }
 
-.time-inputs {
-    display: flex;
-    gap: 10px;
-}
+.time-inputs { display: flex; gap: 10px; }
 .time-inputs div { flex: 1; }
 .time-inputs label { font-size: 10px; color: #888; display: block; margin-bottom: 4px; }
 
@@ -181,7 +178,7 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
             <div class="watermark-side" id="wm-text"></div>
             <div id="img-box">
                 <img id="preview-img" alt="">
-                <video id="preview-video" autoplay loop muted playsinline webkit-playsinline></video>
+                <video id="preview-video" autoplay loop muted playsinline></video>
             </div>
             <div class="card-body" id="body-container">
                 <div id="text">আপনার কবিতা বা স্ট্যাটাস এখানে টাইপ করুন...</div>
@@ -195,19 +192,11 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
     </div>
 
     <div class="panel">
-        <div class="label-row"><span>Upload Photo / Video:</span></div>
-        <input type="file" id="imgInput" accept="image/*, video/*" class="file-up">
-
-        <div id="video-sound-controls" style="display: none; margin-bottom: 15px;">
-            <div class="label-row"><span>Video Background Sound:</span></div>
-            <div class="btn-row" style="margin-bottom: 0;">
-                <button type="button" onclick="toggleVideoMute(true)" id="v-sound-off" class="active-btn">🔇 Mute Sound</button>
-                <button type="button" onclick="toggleVideoMute(false)" id="v-sound-on">🔊 Sound On</button>
-            </div>
-        </div>
+        <div class="label-row"><span>Upload Photo or Video:</span></div>
+        <input type="file" id="mediaInput" accept="image/*,video/*" class="file-up">
 
         <div class="btn-row">
-            <button onclick="setMode('normal')" id="m-normal" class="active-btn">Original</button>
+            <button onclick="setMode('normal')" id="m-normal" class="active-btn">Original Filter</button>
             <button onclick="setMode('bw')" id="m-bw">B&W</button>
             <button onclick="setMode('aesthetic')" id="m-aesthetic">Aesthetic Mood</button>
         </div>
@@ -216,7 +205,7 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
         <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
             <div class="slider-group" style="flex: 1; margin-bottom: 0;">
                 <button class="mini-btn" onclick="adjustZoom(-0.05)">−</button>
-                <input type="range" id="zoomRange" min="1" max="4" step="0.05" value="1">
+                <input type="range" id="zoomRange" min="0.1" max="4" step="0.05" value="1">
                 <button class="mini-btn" onclick="adjustZoom(0.05)">+</button>
             </div>
             <div class="pos-grid">
@@ -257,20 +246,14 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
         </div>
 
         <div class="audio-box">
-            <div class="label-row"><span>Upload Audio / Music (Direct File Access):</span></div>
-            <!-- সরাসরি ফাইল ম্যানেজার/গ্যালারি অপশন পপ-আপের জন্য ফাইল এক্সটেনশন যুক্ত করা হয়েছে -->
-            <input type="file" id="mediaInput" accept="audio/*, video/*, .mp3, .wav, .m4a, .aac, .ogg" class="file-up" style="margin-bottom: 8px;">
+            <div class="label-row"><span>Upload Background Audio (Optional):</span></div>
+            <input type="file" id="audioInput" accept="audio/*" class="file-up" style="margin-bottom: 8px;">
             <div class="time-inputs">
                 <div>
-                    <label>Start Time (Sec):</label>
-                    <input type="number" id="mediaStart" value="0" min="0" step="1">
-                </div>
-                <div>
-                    <label>End Time (Sec):</label>
-                    <input type="number" id="mediaEnd" value="15" min="1" step="1">
+                    <label>Video Duration (Seconds):</label>
+                    <input type="number" id="videoDuration" value="10" min="3" max="60" step="1">
                 </div>
             </div>
-            <audio id="audioPreview" controls style="width: 100%; height: 30px; margin-top: 5px; display: none;"></audio>
         </div>
 
         <input type="text" id="watermarkInput" placeholder="ওয়াটারমার্ক টেক্সট..." value="রিমন-Remon">
@@ -278,7 +261,7 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
         <textarea id="textInput" rows="4" placeholder="আপনার কবিতা বা স্ট্যাটাস লিখুন..."></textarea>
         
         <button onclick="downloadCanvasHD()" class="save-btn">SAVE ULTRA HD IMAGE</button>
-        <button onclick="generateVideoCard()" class="video-btn">🎥 EXPORT VIDEO</button>
+        <button onclick="generateVideoCard()" class="video-btn">🎥 EXPORT HD VIDEO CARD</button>
         <button onclick="resetDefaults()" class="reset-btn">RESET DEFAULTS</button>
     </div>
 </div>
@@ -288,14 +271,10 @@ let zoom = 1, posX = 0, posY = 0, mode = 'normal', brightness = 100;
 let currentAlign = 'left';
 let selectedFontFamily = "BL Bongolipi"; 
 
+let mediaType = null; // 'image' or 'video'
 let globalImageObj = new Image();
-let globalVideoObj = null;
-let isImageLoaded = false;
-let isVideoLoaded = false;
-let isVideoMuted = true;
-
-let mediaUrl = null;
-let mediaType = null; 
+let globalVideoObj = document.getElementById('preview-video');
+let audioFile = null;
 
 const previewImg = document.getElementById('preview-img');
 const previewVideo = document.getElementById('preview-video');
@@ -379,7 +358,7 @@ function adjustValue(id, delta) {
 function adjustZoom(delta) {
     const el = document.getElementById('zoomRange');
     let newVal = parseFloat(el.value) + delta;
-    if(newVal >= 1 && newVal <= 4) {
+    if(newVal >= 0.1 && newVal <= 4) {
         el.value = newVal;
         zoom = newVal;
         updateMediaStyle();
@@ -418,21 +397,9 @@ function updateMediaStyle() {
     
     filterStr += ` brightness(${brightness}%)`;
     
-    let target = isVideoLoaded ? previewVideo : previewImg;
+    let target = mediaType === 'video' ? previewVideo : previewImg;
     target.style.filter = filterStr;
     target.style.transform = `translate(${posX}px, ${posY}px) scale(${zoom})`; 
-}
-
-function toggleVideoMute(isMuted) {
-    isVideoMuted = isMuted;
-    previewVideo.muted = isMuted;
-    
-    if(!isMuted) {
-        previewVideo.play().catch(e => console.log("Play error on unmute:", e));
-    }
-    
-    document.getElementById('v-sound-off').classList.toggle('active-btn', isMuted);
-    document.getElementById('v-sound-on').classList.toggle('active-btn', !isMuted);
 }
 
 function setAlign(al) {
@@ -457,98 +424,54 @@ document.getElementById('textInput').oninput = e => {
     autoFitText();
 };
 
-document.getElementById('imgInput').onchange = e => {
+/* --- মিডিয়া (ছবি ও ভিডিও) আপলোড হ্যান্ডলার --- */
+document.getElementById('mediaInput').onchange = e => {
     const file = e.target.files[0];
     if(!file) return;
 
-    const fileUrl = URL.createObjectURL(file);
     posX = 0; posY = 0; zoom = 1; brightness = 100;
     document.getElementById('zoomRange').value = 1;
     document.getElementById('brightRange').value = 100;
     document.getElementById('brightVal').innerText = "100%";
 
-    if (file.type.startsWith('video/')) {
-        isImageLoaded = false;
-        isVideoLoaded = true;
-        previewImg.style.display = 'none';
-        
-        document.getElementById('video-sound-controls').style.display = 'block';
-        
-        previewVideo.style.display = 'block';
-        previewVideo.src = fileUrl;
-        previewVideo.muted = isVideoMuted; 
+    const fileUrl = URL.createObjectURL(file);
 
-        previewVideo.onloadeddata = () => {
-            let totalSec = Math.floor(previewVideo.duration);
-            if(!isNaN(totalSec) && totalSec > 0) {
-                document.getElementById('mediaStart').value = 0;
-                document.getElementById('mediaEnd').value = totalSec;
-            }
-            previewVideo.play().catch(err => console.log("Mobile autoplay prevented:", err));
-            globalVideoObj = previewVideo;
-            updateMediaStyle();
-        };
-    } else {
-        isVideoLoaded = false;
-        isImageLoaded = true;
+    if (file.type.startsWith('image/')) {
+        mediaType = 'image';
         previewVideo.style.display = 'none';
         previewVideo.pause();
-        document.getElementById('video-sound-controls').style.display = 'none';
 
-        const reader = new FileReader();
-        reader.onload = ev => { 
-            const imgData = ev.target.result;
-            previewImg.src = imgData; 
-            previewImg.style.display = 'block'; 
-            
-            globalImageObj = new Image();
-            globalImageObj.onload = function() {
-                updateMediaStyle();
-            };
-            globalImageObj.src = imgData;
-        };
-        reader.readAsDataURL(file);
+        previewImg.src = fileUrl;
+        previewImg.style.display = 'block';
+
+        globalImageObj = new Image();
+        globalImageObj.src = fileUrl;
+        globalImageObj.onload = () => updateMediaStyle();
+
+    } else if (file.type.startsWith('video/')) {
+        mediaType = 'video';
+        previewImg.style.display = 'none';
+
+        previewVideo.src = fileUrl;
+        previewVideo.style.display = 'block';
+        previewVideo.play();
+        updateMediaStyle();
     }
 };
 
-document.getElementById('mediaInput').onchange = e => {
-    const file = e.target.files[0];
-    if(!file) return;
-
-    mediaUrl = URL.createObjectURL(file);
-    const audioPreview = document.getElementById('audioPreview');
-    mediaType = file.type.startsWith('video/') ? 'video' : 'audio';
-
-    audioPreview.src = mediaUrl;
-    audioPreview.style.display = 'block';
-
-    audioPreview.onloadedmetadata = function() {
-        let totalDuration = Math.floor(audioPreview.duration);
-        if(!isNaN(totalDuration) && totalDuration > 0) {
-            document.getElementById('mediaStart').value = 0;
-            document.getElementById('mediaEnd').value = totalDuration;
-        }
-    };
+document.getElementById('audioInput').onchange = e => {
+    audioFile = e.target.files[0];
 };
 
 function resetDefaults() {
     zoom = 1; posX = 0; posY = 0; brightness = 100;
-    isImageLoaded = false; isVideoLoaded = false;
-    mediaUrl = null; mediaType = null;
+    mediaType = null; audioFile = null;
     document.getElementById('zoomRange').value = 1;
     document.getElementById('brightRange').value = 100;
     document.getElementById('brightVal').innerText = "100%";
-    document.getElementById('imgInput').value = "";
     document.getElementById('mediaInput').value = "";
-    document.getElementById('mediaStart').value = "0";
-    document.getElementById('mediaEnd').value = "15";
-    
-    document.getElementById('video-sound-controls').style.display = 'none';
-    toggleVideoMute(true);
-
-    const audioPreview = document.getElementById('audioPreview');
-    audioPreview.src = "";
-    audioPreview.style.display = 'none';
+    document.getElementById('audioInput').value = "";
+    document.getElementById('videoDuration').value = "10";
 
     previewImg.src = ""; previewImg.style.display = 'none';
     previewVideo.src = ""; previewVideo.style.display = 'none';
@@ -605,15 +528,6 @@ function renderFrame(ctx, cWidth, cHeight, scale, currentText) {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, cWidth, cHeight);
 
-    for (let x = 0; x < cWidth; x += 4) {
-        for (let y = 0; y < cHeight; y += 4) {
-            if (Math.random() > 0.8) {
-                ctx.fillStyle = `rgba(0,0,0,0.03)`;
-                ctx.fillRect(x, y, 4, 4);
-            }
-        }
-    }
-
     const paddingFrame = 25 * scale;
     const imgBoxW = cWidth - (paddingFrame * 2);
     const imgBoxH = 180 * scale; 
@@ -623,14 +537,14 @@ function renderFrame(ctx, cWidth, cHeight, scale, currentText) {
     let mediaElem = null;
     let mediaW = 0, mediaH = 0;
 
-    if (isVideoLoaded && globalVideoObj) {
-        mediaElem = globalVideoObj;
-        mediaW = globalVideoObj.videoWidth;
-        mediaH = globalVideoObj.videoHeight;
-    } else if (isImageLoaded && globalImageObj.complete) {
+    if (mediaType === 'image' && globalImageObj.complete) {
         mediaElem = globalImageObj;
         mediaW = globalImageObj.naturalWidth || globalImageObj.width;
         mediaH = globalImageObj.naturalHeight || globalImageObj.height;
+    } else if (mediaType === 'video' && previewVideo.readyState >= 2) {
+        mediaElem = previewVideo;
+        mediaW = previewVideo.videoWidth;
+        mediaH = previewVideo.videoHeight;
     }
 
     if (mediaElem && mediaW > 0 && mediaH > 0) {
@@ -644,11 +558,11 @@ function renderFrame(ctx, cWidth, cHeight, scale, currentText) {
         
         let renderW, renderH;
         if (imgRatio > boxRatio) {
-            renderH = imgBoxH;
-            renderW = imgBoxH * imgRatio;
-        } else {
             renderW = imgBoxW;
             renderH = imgBoxW / imgRatio;
+        } else {
+            renderH = imgBoxH;
+            renderW = imgBoxH * imgRatio;
         }
 
         let finalW = renderW * zoom;
@@ -763,7 +677,7 @@ function downloadCanvasHD() {
 
             const link = document.createElement("a");
             link.href = canvas.toDataURL("image/png", 1.0);
-            link.download = "Minimalist_Poetry_Card_3x4_HD.png";
+            link.download = "Poetry_Card_HD.png";
             link.click();
             
             toast.style.display = 'none';
@@ -771,139 +685,104 @@ function downloadCanvasHD() {
     });
 }
 
-// স্মুথ এবং ল্যাগ-মুক্ত ভিডিও এক্সপোর্ট করার নতুন আপডেট করা ফাংশন
-function generateVideoCard() {
+/* --- সম্পূর্ণ কার্যকর ভিডীও রেন্ডারিং ইঞ্জিন --- */
+async function generateVideoCard() {
     const toast = document.getElementById('toast');
-    toast.innerText = "ভিডিও তৈরি হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন";
+    toast.innerText = "ভিডিও প্রসেস করা হচ্ছে... অপেক্ষা করুন";
     toast.style.display = 'block';
 
-    document.fonts.ready.then(async () => {
-        let baseWidth = 360;
-        let baseHeight = 480;
-        
-        // ভিডিও আটকে যাওয়া বন্ধ করতে পারফেক্ট স্কেলিং (scale = 2)
-        let scale = 2;
+    const scale = 2; 
+    const cWidth = 360 * scale;
+    const cHeight = 480 * scale;
 
-        const cWidth = baseWidth * scale;
-        const cHeight = baseHeight * scale;
+    const canvas = document.createElement('canvas');
+    canvas.width = cWidth;
+    canvas.height = cHeight;
+    const ctx = canvas.getContext('2d');
 
-        const canvas = document.createElement('canvas');
-        canvas.width = cWidth;
-        canvas.height = cHeight;
-        const ctx = canvas.getContext('2d');
+    const stream = canvas.captureStream(30);
+    const combinedStream = new MediaStream();
 
-        let mimeType = 'video/webm;codecs=vp8';
-        if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E')) {
-            mimeType = 'video/mp4;codecs=avc1.42E01E';
-        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
-            mimeType = 'video/webm;codecs=h264';
-        } else if (!MediaRecorder.isTypeSupported(mimeType)) {
-            mimeType = 'video/webm';
-        }
+    stream.getVideoTracks().forEach(t => combinedStream.addTrack(t));
 
-        // ৩. ল্যাগ বন্ধ করতে 30 FPS প্রসেসিং যুক্ত করা হয়েছে
-        const canvasStream = canvas.captureStream(30); 
+    let audioElem = null;
+    let audioCtx = null;
 
-        let combinedStream = new MediaStream();
-        canvasStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
-
-        let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let dest = audioCtx.createMediaStreamDestination();
-
-        let startTime = parseFloat(document.getElementById('mediaStart').value) || 0;
-        let endTime = parseFloat(document.getElementById('mediaEnd').value) || (startTime + 15);
-        let duration = Math.max(1, endTime - startTime);
-
-        let musicMediaElem;
-
-        if (isVideoLoaded && globalVideoObj && !isVideoMuted) {
-            globalVideoObj.currentTime = startTime;
-            let videoSource = audioCtx.createMediaElementSource(globalVideoObj);
-            videoSource.connect(dest);
-            await globalVideoObj.play().catch(e => console.log(e));
-        } else if (isVideoLoaded && globalVideoObj) {
-            globalVideoObj.currentTime = startTime;
-            await globalVideoObj.play().catch(e => console.log(e));
-        }
-
-        if (mediaUrl) {
-            musicMediaElem = mediaType === 'video' ? document.createElement('video') : new Audio();
-            musicMediaElem.src = mediaUrl;
-            musicMediaElem.currentTime = startTime;
-            
-            if(mediaType === 'video') {
-                musicMediaElem.muted = false;
-                musicMediaElem.playsInline = true;
-            }
-
-            const source = audioCtx.createMediaElementSource(musicMediaElem);
-            source.connect(dest);
-            source.connect(audioCtx.destination); 
-
-            await musicMediaElem.play().catch(e => console.log("Media play error:", e));
-        }
-
-        if ((isVideoLoaded && !isVideoMuted) || mediaUrl) {
-            dest.stream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
-        }
-
-        // বিটরেট ৩.৫ Mbps ফিক্স করা হয়েছে যা প্লেব্যাকে কোনো ল্যাগ তৈরি করে না
-        const recorderOptions = {
-            mimeType: mimeType,
-            videoBitsPerSecond: 3500000 
-        };
-
-        let mediaRecorder;
+    if (audioFile) {
         try {
-            mediaRecorder = new MediaRecorder(combinedStream, recorderOptions);
-        } catch (e) {
-            mediaRecorder = new MediaRecorder(combinedStream);
-        }
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const dest = audioCtx.createMediaStreamDestination();
+            audioElem = new Audio(URL.createObjectURL(audioFile));
+            const source = audioCtx.createMediaElementSource(audioElem);
+            source.connect(dest);
+            dest.stream.getAudioTracks().forEach(t => combinedStream.addTrack(t));
+            await audioElem.play();
+        } catch (e) { console.warn("Audio Context Warning:", e); }
+    }
 
-        const chunks = [];
-        mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    let options = {};
+    if (MediaRecorder.isTypeSupported('video/mp4')) {
+        options = { mimeType: 'video/mp4' };
+    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+        options = { mimeType: 'video/webm;codecs=vp9' };
+    } else {
+        options = { mimeType: 'video/webm' };
+    }
+
+    let mediaRecorder;
+    try {
+        mediaRecorder = new MediaRecorder(combinedStream, options);
+    } catch (e) {
+        mediaRecorder = new MediaRecorder(combinedStream);
+    }
+
+    const chunks = [];
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+    mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Poetry_Video_${Date.now()}.${mediaRecorder.mimeType.includes('mp4') ? 'mp4' : 'webm'}`;
+        a.click();
         
-        mediaRecorder.onstop = () => {
-            const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-            const blob = new Blob(chunks, { type: mimeType });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `Poetry_Video_HD.${ext}`;
-            a.click();
-            toast.style.display = 'none';
+        toast.style.display = 'none';
+        if (audioElem) audioElem.pause();
+        if (audioCtx) audioCtx.close();
+    };
 
-            if(musicMediaElem) musicMediaElem.pause();
-            if(audioCtx) audioCtx.close();
-        };
+    const duration = parseInt(document.getElementById('videoDuration').value) || 10;
+    let isRecording = true;
+    let text = textDisplay.innerText;
 
-        let fullText = textDisplay.innerText;
-        
-        // রিয়েল-টাইম ফ্রেম রাইটিংয়ের জন্য স্মুথ টাইম-স্লাইস
-        mediaRecorder.start(100); 
+    if(mediaType === 'video') {
+        previewVideo.currentTime = 0;
+        previewVideo.play();
+    }
 
-        let isRecording = true;
-        function renderLoop() {
-            if (isRecording) {
-                renderFrame(ctx, cWidth, cHeight, scale, fullText);
-                requestAnimationFrame(renderLoop);
-            }
+    function renderLoop() {
+        if (isRecording) {
+            renderFrame(ctx, cWidth, cHeight, scale, text);
+            requestAnimationFrame(renderLoop);
         }
-        requestAnimationFrame(renderLoop);
+    }
 
-        setTimeout(() => {
-            isRecording = false;
-            if (mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-            }
-        }, duration * 1000); 
-    });
+    mediaRecorder.start();
+    renderLoop();
+
+    setTimeout(() => {
+        isRecording = false;
+        if (mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+    }, duration * 1000);
 }
 
 window.onload = () => { 
     startLiveClock();
     updateWatermark("রিমন-Remon");
-    autoFitText(); 
+    autoFitText();
 };
 </script>
 
