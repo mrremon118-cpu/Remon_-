@@ -7,7 +7,7 @@
 <title>Remon - রিমন</title>
 
 <style>
-/* --- লোকাল বাংলা ফন্ট লোডার -- */
+/* --- লোকাল বাংলা ফন্ট লোডার --- */
 @font-face {
     font-family: 'BL Bongolipi';
     src: url('BL Bongolipi press Unicode regular.ttf') format('truetype');
@@ -480,7 +480,6 @@ document.getElementById('mediaInput').onchange = e => {
         muteBtn.innerText = "🔇 Sound Off (Muted)";
         muteBtn.classList.remove('active-btn');
 
-        // Auto Duration Detection
         previewVideo.onloadedmetadata = () => {
             const dur = Math.round(previewVideo.duration);
             if(dur) document.getElementById('videoDuration').value = dur;
@@ -719,10 +718,10 @@ function downloadCanvasHD() {
     });
 }
 
-/* --- সম্পূর্ণ কার্যকর ভিডীও রেন্ডারিং ইঞ্জিন --- */
+/* --- সম্পূর্ণ কার্যকর ও অডিও-ফিক্সড ভিডিও এক্সপোর্টিং ইঞ্জিন --- */
 async function generateVideoCard() {
     const toast = document.getElementById('toast');
-    toast.innerText = "ভিডিও প্রসেস করা হচ্ছে... অপেক্ষা করুন";
+    toast.innerText = "ভিডিও ও অডিও রেন্ডার হচ্ছে... অপেক্ষা করুন";
     toast.style.display = 'block';
 
     const scale = 2; 
@@ -734,41 +733,44 @@ async function generateVideoCard() {
     canvas.height = cHeight;
     const ctx = canvas.getContext('2d');
 
-    const stream = canvas.captureStream(30);
+    const canvasStream = canvas.captureStream(30);
     const combinedStream = new MediaStream();
 
-    stream.getVideoTracks().forEach(t => combinedStream.addTrack(t));
+    // অ্যাড করা হচ্ছে ভিডিও ট্রাক
+    canvasStream.getVideoTracks().forEach(t => combinedStream.addTrack(t));
 
     let audioElem = null;
     let audioCtx = null;
 
     try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const dest = audioCtx.createMediaStreamDestination();
-        let hasAudio = false;
+        let hasAudioTrack = false;
 
-        // Video Audio Handling
+        // ১. ভিডিও অরিজিনাল সাউন্ড যোগ করা (যদি Unmuted থাকে)
         if (mediaType === 'video' && !previewVideo.muted) {
-            const vSource = audioCtx.createMediaElementSource(previewVideo);
-            vSource.connect(dest);
-            vSource.connect(audioCtx.destination);
-            hasAudio = true;
+            let vStream = previewVideo.captureStream ? previewVideo.captureStream() : (previewVideo.mozCaptureStream ? previewVideo.mozCaptureStream() : null);
+            if (vStream && vStream.getAudioTracks().length > 0) {
+                vStream.getAudioTracks().forEach(t => combinedStream.addTrack(t));
+                hasAudioTrack = true;
+            }
         }
 
-        // External Audio File Handling
+        // ২. অতিরিক্ত অডিও ফাইল যোগ করা (যদি ফাইল আপলোড করা থাকে)
         if (audioFile) {
             audioElem = new Audio(URL.createObjectURL(audioFile));
-            const aSource = audioCtx.createMediaElementSource(audioElem);
-            aSource.connect(dest);
-            aSource.connect(audioCtx.destination);
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaElementSource(audioElem);
+            const dest = audioCtx.createMediaStreamDestination();
+            source.connect(dest);
+            source.connect(audioCtx.destination);
+
+            dest.stream.getAudioTracks().forEach(t => combinedStream.addTrack(t));
             await audioElem.play();
-            hasAudio = true;
+            hasAudioTrack = true;
         }
 
-        if (hasAudio) {
-            dest.stream.getAudioTracks().forEach(t => combinedStream.addTrack(t));
-        }
-    } catch (e) { console.warn("Audio Context Notice:", e); }
+    } catch (e) {
+        console.warn("Audio processing fallback activated:", e);
+    }
 
     let options = {};
     if (MediaRecorder.isTypeSupported('video/mp4')) {
