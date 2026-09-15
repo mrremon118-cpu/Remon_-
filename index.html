@@ -1,4 +1,4 @@
-\<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="bn">
 <head>
 <meta charset="UTF-8">
@@ -74,6 +74,7 @@ body {
     transform: translate(0px, 0px) scale(1);
     transform-origin: center center; 
     display: none; 
+    will-change: transform, filter;
 }
 
 .watermark-side {
@@ -195,6 +196,13 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
         <div class="label-row"><span>Upload Photo or Video:</span></div>
         <input type="file" id="mediaInput" accept="image/*,video/*" class="file-up">
 
+        <!-- Video Sound Toggle Box -->
+        <div id="sound-control-box" style="display: none; margin-bottom: 15px;">
+            <div class="btn-row" style="margin-bottom: 0;">
+                <button type="button" onclick="toggleMute()" id="mute-btn">🔇 Sound Off (Muted)</button>
+            </div>
+        </div>
+
         <div class="btn-row">
             <button onclick="setMode('normal')" id="m-normal" class="active-btn">Original Filter</button>
             <button onclick="setMode('bw')" id="m-bw">B&W</button>
@@ -251,7 +259,7 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
             <div class="time-inputs">
                 <div>
                     <label>Video Duration (Seconds):</label>
-                    <input type="number" id="videoDuration" value="10" min="3" max="60" step="1">
+                    <input type="number" id="videoDuration" value="10" min="1" max="300" step="1">
                 </div>
             </div>
         </div>
@@ -271,15 +279,16 @@ let zoom = 1, posX = 0, posY = 0, mode = 'normal', brightness = 100;
 let currentAlign = 'left';
 let selectedFontFamily = "BL Bongolipi"; 
 
-let mediaType = null; // 'image' or 'video'
+let mediaType = null;
 let globalImageObj = new Image();
-let globalVideoObj = document.getElementById('preview-video');
 let audioFile = null;
 
 const previewImg = document.getElementById('preview-img');
 const previewVideo = document.getElementById('preview-video');
 const textDisplay = document.getElementById('text');
 const bodyContainer = document.getElementById('body-container');
+const soundBox = document.getElementById('sound-control-box');
+const muteBtn = document.getElementById('mute-btn');
 
 const banglaNumbers = {'0':'০','1':'১','2':'২','3':'৩','4':'৪','5':'৫','6':'৬','7':'৭','8':'৮','9':'৯'};
 const banglaMonths = ["জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন", "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর"];
@@ -416,6 +425,17 @@ function setMode(m) {
     updateMediaStyle();
 }
 
+function toggleMute() {
+    previewVideo.muted = !previewVideo.muted;
+    if(previewVideo.muted) {
+        muteBtn.innerText = "🔇 Sound Off (Muted)";
+        muteBtn.classList.remove('active-btn');
+    } else {
+        muteBtn.innerText = "🔊 Sound On (Unmuted)";
+        muteBtn.classList.add('active-btn');
+    }
+}
+
 document.getElementById('watermarkInput').oninput = e => { updateWatermark(e.target.value || "রিমন-Remon"); };
 document.getElementById('creditInput').oninput = e => { document.getElementById('credit-view').innerText = e.target.value || ""; };
 
@@ -438,6 +458,7 @@ document.getElementById('mediaInput').onchange = e => {
 
     if (file.type.startsWith('image/')) {
         mediaType = 'image';
+        soundBox.style.display = 'none';
         previewVideo.style.display = 'none';
         previewVideo.pause();
 
@@ -450,12 +471,23 @@ document.getElementById('mediaInput').onchange = e => {
 
     } else if (file.type.startsWith('video/')) {
         mediaType = 'video';
+        soundBox.style.display = 'block';
         previewImg.style.display = 'none';
 
         previewVideo.src = fileUrl;
         previewVideo.style.display = 'block';
-        previewVideo.play();
-        updateMediaStyle();
+        previewVideo.muted = true;
+        muteBtn.innerText = "🔇 Sound Off (Muted)";
+        muteBtn.classList.remove('active-btn');
+
+        // Auto Duration Detection
+        previewVideo.onloadedmetadata = () => {
+            const dur = Math.round(previewVideo.duration);
+            if(dur) document.getElementById('videoDuration').value = dur;
+            updateMediaStyle();
+        };
+
+        previewVideo.play().catch(err => console.log(err));
     }
 };
 
@@ -466,6 +498,8 @@ document.getElementById('audioInput').onchange = e => {
 function resetDefaults() {
     zoom = 1; posX = 0; posY = 0; brightness = 100;
     mediaType = null; audioFile = null;
+    soundBox.style.display = 'none';
+    
     document.getElementById('zoomRange').value = 1;
     document.getElementById('brightRange').value = 100;
     document.getElementById('brightVal').innerText = "100%";
@@ -708,17 +742,33 @@ async function generateVideoCard() {
     let audioElem = null;
     let audioCtx = null;
 
-    if (audioFile) {
-        try {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const dest = audioCtx.createMediaStreamDestination();
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const dest = audioCtx.createMediaStreamDestination();
+        let hasAudio = false;
+
+        // Video Audio Handling
+        if (mediaType === 'video' && !previewVideo.muted) {
+            const vSource = audioCtx.createMediaElementSource(previewVideo);
+            vSource.connect(dest);
+            vSource.connect(audioCtx.destination);
+            hasAudio = true;
+        }
+
+        // External Audio File Handling
+        if (audioFile) {
             audioElem = new Audio(URL.createObjectURL(audioFile));
-            const source = audioCtx.createMediaElementSource(audioElem);
-            source.connect(dest);
-            dest.stream.getAudioTracks().forEach(t => combinedStream.addTrack(t));
+            const aSource = audioCtx.createMediaElementSource(audioElem);
+            aSource.connect(dest);
+            aSource.connect(audioCtx.destination);
             await audioElem.play();
-        } catch (e) { console.warn("Audio Context Warning:", e); }
-    }
+            hasAudio = true;
+        }
+
+        if (hasAudio) {
+            dest.stream.getAudioTracks().forEach(t => combinedStream.addTrack(t));
+        }
+    } catch (e) { console.warn("Audio Context Notice:", e); }
 
     let options = {};
     if (MediaRecorder.isTypeSupported('video/mp4')) {
@@ -752,13 +802,13 @@ async function generateVideoCard() {
         if (audioCtx) audioCtx.close();
     };
 
-    const duration = parseInt(document.getElementById('videoDuration').value) || 10;
+    const duration = parseFloat(document.getElementById('videoDuration').value) || 10;
     let isRecording = true;
     let text = textDisplay.innerText;
 
     if(mediaType === 'video') {
         previewVideo.currentTime = 0;
-        previewVideo.play();
+        previewVideo.play().catch(e => console.log(e));
     }
 
     function renderLoop() {
