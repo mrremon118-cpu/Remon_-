@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="icon" type="image/x-icon" href="favicon.png">
-<title>Remon🌸- রিমন</title>
+<title>Remon - রিমন</title>
 
 <style>
 /* --- লোকাল বাংলা ফন্ট লোডার --- */
@@ -181,7 +181,7 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
             <div class="watermark-side" id="wm-text"></div>
             <div id="img-box">
                 <img id="preview-img" alt="">
-                <video id="preview-video" autoplay loop muted playsinline></video>
+                <video id="preview-video" autoplay loop muted playsinline webkit-playsinline></video>
             </div>
             <div class="card-body" id="body-container">
                 <div id="text">আপনার কবিতা বা স্ট্যাটাস এখানে টাইপ করুন...</div>
@@ -198,7 +198,7 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
         <div class="label-row"><span>Upload Photo / Video:</span></div>
         <input type="file" id="imgInput" accept="image/*, video/*" class="file-up">
 
-        <!-- সাউন্ড অন/অফ করার বাটন -->
+        <!-- ভিডিও সাউন্ড অপশন -->
         <div id="video-sound-controls" style="display: none; margin-bottom: 15px;">
             <div class="label-row"><span>Video Background Sound:</span></div>
             <div class="btn-row" style="margin-bottom: 0;">
@@ -257,7 +257,6 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
             <button class="mini-btn" onclick="adjustValue('textSizeRange', 1)">+</button>
         </div>
 
-        <!-- অডিও/ভিডিও মিউজিক ফাইল ট্রিমার সেকশন -->
         <div class="audio-box">
             <div class="label-row"><span>Upload Audio / Extra Music Source (Optional):</span></div>
             <input type="file" id="mediaInput" accept="audio/*, video/*" class="file-up" style="margin-bottom: 8px;">
@@ -428,6 +427,10 @@ function toggleVideoMute(isMuted) {
     isVideoMuted = isMuted;
     previewVideo.muted = isMuted;
     
+    if(!isMuted) {
+        previewVideo.play().catch(e => console.log("Play error on unmute:", e));
+    }
+    
     document.getElementById('v-sound-off').classList.toggle('active-btn', isMuted);
     document.getElementById('v-sound-on').classList.toggle('active-btn', !isMuted);
 }
@@ -454,7 +457,7 @@ document.getElementById('textInput').oninput = e => {
     autoFitText();
 };
 
-// ছবি বা ভিডিও যেকোনো ফাইল আপলোডের হ্যান্ডলার
+// মোবাইল ফ্রেন্ডলি ইমেজ/ভিডিও ফাইল আপলোডার
 document.getElementById('imgInput').onchange = e => {
     const file = e.target.files[0];
     if(!file) return;
@@ -472,20 +475,21 @@ document.getElementById('imgInput').onchange = e => {
         
         document.getElementById('video-sound-controls').style.display = 'block';
         
-        previewVideo.src = fileUrl;
         previewVideo.style.display = 'block';
-        previewVideo.muted = isVideoMuted;
-        
-        previewVideo.onloadedmetadata = () => {
+        previewVideo.src = fileUrl;
+        previewVideo.muted = isVideoMuted; 
+
+        // মোবাইল প্লেব্যাক হ্যান্ডলিং
+        previewVideo.onloadeddata = () => {
             let totalSec = Math.floor(previewVideo.duration);
             if(!isNaN(totalSec) && totalSec > 0) {
                 document.getElementById('mediaStart').value = 0;
                 document.getElementById('mediaEnd').value = totalSec;
             }
+            previewVideo.play().catch(err => console.log("Mobile autoplay prevented:", err));
+            globalVideoObj = previewVideo;
+            updateMediaStyle();
         };
-        previewVideo.play();
-        globalVideoObj = previewVideo;
-        updateMediaStyle();
     } else {
         isVideoLoaded = false;
         isImageLoaded = true;
@@ -509,7 +513,6 @@ document.getElementById('imgInput').onchange = e => {
     }
 };
 
-// অডিও/ভিডিও গান সিলেক্টর
 document.getElementById('mediaInput').onchange = e => {
     const file = e.target.files[0];
     if(!file) return;
@@ -800,7 +803,6 @@ function generateVideoCard() {
 
         let musicMediaElem;
 
-        // ১. যদি ব্যাকগ্রাউন্ড ভিডিওর সাউন্ড অন করা থাকে
         if (isVideoLoaded && globalVideoObj && !isVideoMuted) {
             globalVideoObj.currentTime = startTime;
             let videoSource = audioCtx.createMediaElementSource(globalVideoObj);
@@ -811,7 +813,6 @@ function generateVideoCard() {
             await globalVideoObj.play().catch(e => console.log(e));
         }
 
-        // ২. আলাদা কোনো ব্যাকগ্রাউন্ড মিউজিক/অডিও থাকলে
         if (mediaUrl) {
             musicMediaElem = mediaType === 'video' ? document.createElement('video') : new Audio();
             musicMediaElem.src = mediaUrl;
@@ -829,7 +830,6 @@ function generateVideoCard() {
             await musicMediaElem.play().catch(e => console.log("Media play error:", e));
         }
 
-        // যদি কোনো সাউন্ড অন থাকে তবেই অডিও ট্র্যাক যুক্ত হবে
         if ((isVideoLoaded && !isVideoMuted) || mediaUrl) {
             dest.stream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
         }
