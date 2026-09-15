@@ -457,7 +457,6 @@ document.getElementById('textInput').oninput = e => {
     autoFitText();
 };
 
-// মোবাইল ফ্রেন্ডলি ইমেজ/ভিডিও ফাইল আপলোডার
 document.getElementById('imgInput').onchange = e => {
     const file = e.target.files[0];
     if(!file) return;
@@ -479,7 +478,6 @@ document.getElementById('imgInput').onchange = e => {
         previewVideo.src = fileUrl;
         previewVideo.muted = isVideoMuted; 
 
-        // মোবাইল প্লেব্যাক হ্যান্ডলিং
         previewVideo.onloadeddata = () => {
             let totalSec = Math.floor(previewVideo.duration);
             if(!isNaN(totalSec) && totalSec > 0) {
@@ -775,21 +773,37 @@ function downloadCanvasHD() {
 
 function generateVideoCard() {
     const toast = document.getElementById('toast');
-    toast.innerText = "ভিডিও ও অডিও প্রসেস হচ্ছে...";
+    toast.innerText = "এইচডি ভিডিও প্রসেস হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন";
     toast.style.display = 'block';
 
     document.fonts.ready.then(async () => {
-        const scale = 2; 
-        const cWidth = 360 * scale;
-        const cHeight = 480 * scale;
+        let baseWidth = 360;
+        let baseHeight = 480;
+        let scale = 2; 
+
+        if (isVideoLoaded && globalVideoObj) {
+            let originalVideoWidth = globalVideoObj.videoWidth || 720;
+            scale = Math.max(2, originalVideoWidth / baseWidth);
+        }
+
+        const cWidth = baseWidth * scale;
+        const cHeight = baseHeight * scale;
 
         const canvas = document.createElement('canvas');
         canvas.width = cWidth;
         canvas.height = cHeight;
         const ctx = canvas.getContext('2d');
 
-        const fps = 30;
-        const canvasStream = canvas.captureStream(fps); 
+        let mimeType = 'video/webm;codecs=vp9';
+        if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E')) {
+            mimeType = 'video/mp4;codecs=avc1.42E01E';
+        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
+            mimeType = 'video/webm;codecs=h264';
+        } else if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'video/webm';
+        }
+
+        const canvasStream = canvas.captureStream(60); 
 
         let combinedStream = new MediaStream();
         canvasStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
@@ -834,21 +848,28 @@ function generateVideoCard() {
             dest.stream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
         }
 
-        let mimeType = 'video/webm;codecs=vp9';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-            mimeType = 'video/webm';
-        }
-        
-        const mediaRecorder = new MediaRecorder(combinedStream, { mimeType: mimeType });
-        const chunks = [];
+        const recorderOptions = {
+            mimeType: mimeType,
+            videoBitsPerSecond: 15000000 
+        };
 
+        let mediaRecorder;
+        try {
+            mediaRecorder = new MediaRecorder(combinedStream, recorderOptions);
+        } catch (e) {
+            mediaRecorder = new MediaRecorder(combinedStream);
+        }
+
+        const chunks = [];
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+        
         mediaRecorder.onstop = () => {
-            const blob = new Blob(chunks, { type: 'video/webm' });
+            const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+            const blob = new Blob(chunks, { type: mimeType });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
+            const a = document.createElement("a");
             a.href = url;
-            a.download = 'Poetry_Video_Card.webm';
+            a.download = `Poetry_Video_HD.${ext}`;
             a.click();
             toast.style.display = 'none';
 
@@ -859,16 +880,17 @@ function generateVideoCard() {
         let fullText = textDisplay.innerText;
         mediaRecorder.start();
 
-        const frameInterval = 1000 / fps;
-        const drawInterval = setInterval(() => {
-            renderFrame(ctx, cWidth, cHeight, scale, fullText);
-            if (musicMediaElem && musicMediaElem.currentTime >= endTime) {
-                musicMediaElem.pause();
+        let isRecording = true;
+        function renderLoop() {
+            if (isRecording) {
+                renderFrame(ctx, cWidth, cHeight, scale, fullText);
+                requestAnimationFrame(renderLoop);
             }
-        }, frameInterval);
+        }
+        requestAnimationFrame(renderLoop);
 
         setTimeout(() => {
-            clearInterval(drawInterval);
+            isRecording = false;
             if (mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
             }
