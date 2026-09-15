@@ -198,7 +198,6 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
         <div class="label-row"><span>Upload Photo / Video:</span></div>
         <input type="file" id="imgInput" accept="image/*, video/*" class="file-up">
 
-        <!-- ভিডিও সাউন্ড অপশন -->
         <div id="video-sound-controls" style="display: none; margin-bottom: 15px;">
             <div class="label-row"><span>Video Background Sound:</span></div>
             <div class="btn-row" style="margin-bottom: 0;">
@@ -258,8 +257,9 @@ select option { background: #0a0a0a; color: #fff; font-family: sans-serif; }
         </div>
 
         <div class="audio-box">
-            <div class="label-row"><span>Upload Audio / Extra Music Source (Optional):</span></div>
-            <input type="file" id="mediaInput" accept="audio/*, video/*" class="file-up" style="margin-bottom: 8px;">
+            <div class="label-row"><span>Upload Audio / Music (Direct File Access):</span></div>
+            <!-- সরাসরি ফাইল ম্যানেজার/গ্যালারি অপশন পপ-আপের জন্য ফাইল এক্সটেনশন যুক্ত করা হয়েছে -->
+            <input type="file" id="mediaInput" accept="audio/*, video/*, .mp3, .wav, .m4a, .aac, .ogg" class="file-up" style="margin-bottom: 8px;">
             <div class="time-inputs">
                 <div>
                     <label>Start Time (Sec):</label>
@@ -771,20 +771,18 @@ function downloadCanvasHD() {
     });
 }
 
+// স্মুথ এবং ল্যাগ-মুক্ত ভিডিও এক্সপোর্ট করার নতুন আপডেট করা ফাংশন
 function generateVideoCard() {
     const toast = document.getElementById('toast');
-    toast.innerText = "এইচডি ভিডিও প্রসেস হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন";
+    toast.innerText = "ভিডিও তৈরি হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন";
     toast.style.display = 'block';
 
     document.fonts.ready.then(async () => {
         let baseWidth = 360;
         let baseHeight = 480;
-        let scale = 2; 
-
-        if (isVideoLoaded && globalVideoObj) {
-            let originalVideoWidth = globalVideoObj.videoWidth || 720;
-            scale = Math.max(2, originalVideoWidth / baseWidth);
-        }
+        
+        // ভিডিও আটকে যাওয়া বন্ধ করতে পারফেক্ট স্কেলিং (scale = 2)
+        let scale = 2;
 
         const cWidth = baseWidth * scale;
         const cHeight = baseHeight * scale;
@@ -794,7 +792,7 @@ function generateVideoCard() {
         canvas.height = cHeight;
         const ctx = canvas.getContext('2d');
 
-        let mimeType = 'video/webm;codecs=vp9';
+        let mimeType = 'video/webm;codecs=vp8';
         if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E')) {
             mimeType = 'video/mp4;codecs=avc1.42E01E';
         } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
@@ -803,7 +801,8 @@ function generateVideoCard() {
             mimeType = 'video/webm';
         }
 
-        const canvasStream = canvas.captureStream(60); 
+        // ৩. ল্যাগ বন্ধ করতে 30 FPS প্রসেসিং যুক্ত করা হয়েছে
+        const canvasStream = canvas.captureStream(30); 
 
         let combinedStream = new MediaStream();
         canvasStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
@@ -848,9 +847,10 @@ function generateVideoCard() {
             dest.stream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
         }
 
+        // বিটরেট ৩.৫ Mbps ফিক্স করা হয়েছে যা প্লেব্যাকে কোনো ল্যাগ তৈরি করে না
         const recorderOptions = {
             mimeType: mimeType,
-            videoBitsPerSecond: 15000000 
+            videoBitsPerSecond: 3500000 
         };
 
         let mediaRecorder;
@@ -861,7 +861,7 @@ function generateVideoCard() {
         }
 
         const chunks = [];
-        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+        mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
         
         mediaRecorder.onstop = () => {
             const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
@@ -878,7 +878,9 @@ function generateVideoCard() {
         };
 
         let fullText = textDisplay.innerText;
-        mediaRecorder.start();
+        
+        // রিয়েল-টাইম ফ্রেম রাইটিংয়ের জন্য স্মুথ টাইম-স্লাইস
+        mediaRecorder.start(100); 
 
         let isRecording = true;
         function renderLoop() {
